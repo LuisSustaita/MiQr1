@@ -7,8 +7,13 @@ imagen2 = cv2.imread('imagenprueba.jpg')
 imagen3 = imagen1[1:568, 1:1001, :]
 
 # fusion de imagenes
+# suma de imagenes, pero con diferentes pesos lo cual da una
+# sensacion de mezcla o transparencia
 # toma el 0.7 de la primer imagen y el 0.3 de la segunda imagen
 imagen_resultado = cv2.addWeighted(imagen3, 0.7, imagen2, 0.3, 0)
+# gamma es tomado como cero.
+
+
 cv2.imshow('imagen_resultado', imagen_resultado)
 cv2.imwrite('imagen_resultado.png', imagen_resultado)
 cv2.waitKey(0)
