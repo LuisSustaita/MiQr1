@@ -1,0 +1,20 @@
+# Compilados #
+*.class
+*.dll
+*.pyc
+# paquetes #
+*.zip
+*.dmg
+*.rar
+# Generados por el sistema operativo #
+.DS_Store
+.Trashes
+.Thumbs.db
+# directorios #
+/__pycache__/*
+.idea/*
+.idea
+venv/*
+venv
+# Personales #
+notas.txt
