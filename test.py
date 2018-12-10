@@ -11,6 +11,23 @@ def cambia_tamano_de_esta_imagen(nombre_imagen):
     imgresized.save(nombre_imagen)
 
 
+def binarizacion(imagen, threshold):
+    import cv2
+    img = cv2.imread(imagen)
+    img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    cv2.imwrite('gray.jpg', img_gray)
+
+    for i in range(img_gray.shape[0]):
+        for j in range(img_gray.shape[1]):
+            if img_gray[i, j] > threshold:
+                img_gray[i, j] = 0
+            else:
+                img_gray[i, j] = 255
+
+        cv2.imwrite('bin.jpg', img_gray)
+
+
 # Importamos OpenCV para realizar operaciones a las imegenes
 import cv2
 # Importamos qrcode para generar Codigos QR propios
@@ -22,12 +39,14 @@ Qr.save(imagen)
 imagen.close()
 
 cambia_tamano_de_esta_imagen('qrprueba.png')
-cambia_tamano_de_esta_imagen('imagenprueba.jpg')
+cambia_tamano_de_esta_imagen('carrito.png')
+
+binarizacion('carrito.png',155)
 
 imagen1 = cv2.imread('qrprueba.png')
-imagen2 = cv2.imread('imagenprueba.jpg')
+imagen2 = cv2.imread('carrito.png')
 
-#imagen3 = imagen1[1:200, 1:200, :]
+# imagen3 = imagen1[1:200, 1:200, :]
 
 # fusion de imagenes
 # suma de imagenes, pero con diferentes pesos lo cual da una
