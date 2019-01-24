@@ -8,6 +8,7 @@ def find_closest_palette_color(pixel):
     return round(pixel/255)
 
 
+# Floyd and Steinberg https://engineering.purdue.edu/~bouman/ece637/notes/pdf/Halftoning.pdf pag 22
 def FloydDithering(imagen):
     img = cv2.imread(imagen)
     img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -25,6 +26,36 @@ def FloydDithering(imagen):
             img_gray[x+1, y+1] = round(img_gray[x+1, y+1]+quant_error * 1/16)
     cv2.imwrite('floydDit.jpg', img_gray)
     binarizacion('floydDit.jpg', 23)
+
+
+# Jarvis, Judice, and Ninke https://engineering.purdue.edu/~bouman/ece637/notes/pdf/Halftoning.pdf pag 22
+def JarvisDithering(imagen):
+    img = cv2.imread(imagen)
+    img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    for x in range(img_gray.shape[0] - 2):
+        for y in range(img_gray.shape[1] - 2):
+            oldpixel = img_gray[x, y]
+            newpixel = find_closest_palette_color(oldpixel)
+            img_gray[x, y] = newpixel
+            quant_error = oldpixel - newpixel
+            img_gray[x + 1, y    ] = round(img_gray[x + 1, y    ] + quant_error * 7 / 48)
+            img_gray[x + 2, y    ] = round(img_gray[x + 2, y    ] + quant_error * 5 / 48)
+
+            img_gray[x - 2, y + 1] = round(img_gray[x - 2, y + 1] + quant_error * 3 / 48)
+            img_gray[x - 1, y + 1] = round(img_gray[x - 1, y + 1] + quant_error * 5 / 48)
+            img_gray[x    , y + 1] = round(img_gray[x    , y + 1] + quant_error * 7 / 48)
+            img_gray[x + 1, y + 1] = round(img_gray[x + 1, y + 1] + quant_error * 5 / 48)
+            img_gray[x + 2, y + 1] = round(img_gray[x + 2, y + 1] + quant_error * 3 / 48)
+
+            img_gray[x - 2, y + 2] = round(img_gray[x - 2, y + 2] + quant_error * 1 / 48)
+            img_gray[x - 1, y + 2] = round(img_gray[x - 1, y + 2] + quant_error * 3 / 48)
+            img_gray[x    , y + 2] = round(img_gray[x    , y + 2] + quant_error * 5 / 48)
+            img_gray[x + 1, y + 2] = round(img_gray[x + 1, y + 2] + quant_error * 3 / 48)
+            img_gray[x + 2, y + 2] = round(img_gray[x + 2, y + 2] + quant_error * 1 / 48)
+
+    cv2.imwrite('JarvisDit.jpg', img_gray)
+    binarizacion('JarvisDit.jpg', 31)
 
 
 def cambia_tamano_de_esta_imagen(nombre_imagen):
@@ -69,8 +100,9 @@ imagen.close()
 cambia_tamano_de_esta_imagen('qrprueba.png')
 cambia_tamano_de_esta_imagen('carrito.png')
 
-#binarizacion('carrito.png', 127)
-FloydDithering('carrito.png')
+# binarizacion('carrito.png', 127)
+# FloydDithering('carrito.png')
+JarvisDithering('carrito.png')
 
 imagen1 = cv2.imread('qrprueba.png')
 imagen2 = cv2.imread('carrito.png')
