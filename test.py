@@ -70,7 +70,7 @@ cambia_tamano_de_esta_imagen('qrprueba.png')
 cambia_tamano_de_esta_imagen('carrito.png')
 
 #binarizacion('carrito.png', 127)
-FloydDithering('qrprueba.png')
+FloydDithering('carrito.png')
 
 imagen1 = cv2.imread('qrprueba.png')
 imagen2 = cv2.imread('carrito.png')
