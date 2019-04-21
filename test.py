@@ -3,6 +3,7 @@ import cv2
 # Importamos qrcode para generar Codigos QR propios
 import qrcode
 import numpy as np
+from PIL import Image
 
 
 def find_new_pixel(pixel):
@@ -12,12 +13,22 @@ def find_new_pixel(pixel):
 # Floyd and Steinberg https://engineering.purdue.edu/~bouman/ece637/notes/pdf/Halftoning.pdf pag 22
 def FloydDithering(imagen):
     img = cv2.imread(imagen)
-    img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    #img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    img_gray = []
+
+    for x in range(img.shape[0]):
+        img_gray.append([])
+        for y in range(img.shape[1]):
+            img_gray[x].append([])
+            img_gray[x][y] = (img[x, y, 0] * 0.2126) + (img[x, y, 1] * 0.7152) + (img[x, y, 2] * 0.0722)
+
     matrizimagen = np.zeros((200, 200))
 
-    for x in range(img_gray.shape[0]-1):
-        for y in range(img_gray.shape[1]-1):
-            oldpixel = img_gray[x, y]
+    for x in range(len(img_gray)-1):
+        for y in range(len(img_gray[x])-1):
+            oldpixel = img_gray[x][ y]
             newpixel = find_new_pixel(oldpixel)
             quant_error = oldpixel-newpixel
 
@@ -75,21 +86,65 @@ def JarvisDithering(imagen):
             matrizimagen[x][y] = newpixel
 
     cv2.imwrite('JarvisDit.jpg', matrizimagen)
+    return matrizimagen
+
+
+def redimensionarQR(nombre_imagen,escala):
+    """
+    :param nombre_imagen: string con el nombre de la imagen a redimensionar
+    :param escala: entero de cuantos pixeles se va a extender (ejemplo  de 1 pixel a 3 ... 1 -> 5)
+    :return: objeto Image con la imagen redimensionada
+    """
+
+    img = Image.open(nombre_imagen)
+
+    width, height = img.size
+
+    Width = width*escala
+    Height = height*escala
+
+    imgresized = img.resize((Width, Height), Image.ANTIALIAS)
+
+    imgresized.save("new "+nombre_imagen)
+
+    return imgresized
+
 
 def cambia_tamano_de_esta_imagen(nombre_imagen):
-    from PIL import Image
+    """
+    :param nombre_imagen:  string con el nombre de la imagen a redimensionar
+    :return: objeto Image con la imagen redimensionada a 200*200 pixeles
+    """
+    img = Image.open(nombre_imagen)
 
     Width = 200
     Height = 200
 
-    img = Image.open(nombre_imagen)
-
-    imgresized = img.resize((Width, Height), Image.NEAREST)
+    imgresized = img.resize((Width, Height), Image.ANTIALIAS)
 
     imgresized.save(nombre_imagen)
 
+    return imgresized
 
-def binarizacion(imagen, threshold):
+
+def halftoneQR(QR, imagen):
+    newQR= np.asarray(QR)
+    for x in range(QR.shape[0]):
+        for y in range(QR.shape[1]):
+            if np.random.uniform(0,1) < 0.3:
+                newQR[x, y] = QR[x, y]
+            else:
+                newQR[x, y] = imagen[x, y]
+
+    return newQR
+
+
+def binarizacionSimple(imagen, threshold):
+    """
+    :param imagen: string con el nombre de la imagen a binarizar
+    :param threshold: entero entre 0 y 512 que representa el limite
+    :return: imagen Binarizada
+    """
     img = cv2.imread(imagen)
     img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
@@ -104,29 +159,66 @@ def binarizacion(imagen, threshold):
                 img_gray[i, j] = 255
 
     cv2.imwrite('bin'+str(threshold)+'.jpg', img_gray)
+    return img_gray
 
 
-Qr = qrcode.make("Que tranza carranza")
-qrimagen = open("qrprueba.png", "wb")
-Qr.save(qrimagen)
-qrimagen.close()
-imagen = 'carrito.png'
+qr = qrcode.QRCode(
+    version=10,
+    error_correction=qrcode.constants.ERROR_CORRECT_L,
+    box_size=1,
+    border=1,
+)
 
-cambia_tamano_de_esta_imagen('qrprueba.png')
+# 0 -17 caracteres -> 23*23 QR
+# 18-32 caracteres -> 27*27 QR
+# 33-53 caracteres -> 31*31 QR
+# 54-78 caracteres -> 35*35 QR -> 0.4
+# 79->¿ caracteres -> 39*39 QR
+#                  -> 43*43
+#                  -> 47*47
+#qr.add_data('hey')
+qr.add_data('BEGIN:VCARD\nVERSION:3.0\n'
+            'N:Sustaita;Luis\nTEL:4491046191\n'
+            'EMAIL:ld.delacruzsustaita@ugto.mx\n'
+            '\nEND:VCARD')
+qr.make(fit=True)
+
+img = qr.make_image()
+
+NOMBRE_DE_QR = "qrsito.png"
+
+img.save(NOMBRE_DE_QR)
+
+arrayQR = np.asarray(img, dtype=np.int)
+for i in range(len(arrayQR)):
+    for j in range(len(arrayQR[i])):
+        if arrayQR[i][j] == 1:
+            arrayQR[i][j] = 255
+        else:
+            arrayQR[i][j] = 0
+
+imagen = 'pat2.jpeg'
+
+QR_Redimensionado = redimensionarQR(NOMBRE_DE_QR, 3)
+
+cambia_tamano_de_esta_imagen("new "+NOMBRE_DE_QR)
 cambia_tamano_de_esta_imagen(imagen)
 
 # binarizacion(imagen, 127)
 # FloydDithering(imagen)
-JarvisDithering(imagen)
+halftoned_image = JarvisDithering(imagen)
 
-imagen1 = cv2.imread('qrprueba.png')
+newQR = halftoneQR(arrayQR, halftoned_image)
+#cv2.imwrite('NEW QR.jpg', newQR)
+
+imagen1 = cv2.imread('qrsito.png')
 imagen2 = cv2.imread(imagen)
 
 # fusion de imagenes
 # suma de imagenes, pero con diferentes pesos lo cual da una
 # sensacion de mezcla o transparencia
 # toma el 0.7 de la primer imagen y el 0.3 de la segunda imagen
-imagen_resultado = cv2.addWeighted(imagen1, 0.7, imagen2, 0.3, 0)
+imagen_resultado = cv2.addWeighted(imagen1, 0.3, imagen2, 0.7, 0)
 # gamma es tomado como cero
 
 cv2.imshow('imagen_resultado', imagen_resultado)
@@ -153,4 +245,31 @@ cv2.destroyAllWindows()
 # file:///C:/Users/luisd/Downloads/BPTX_2008_2_11320_0_233062_0_73868.pdf
 # Articulo A Simple and Efficient Error-Diffusion Algorithm
 # http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.16.8947&rep=rep1&type=pdf
+# Deteccion de codigos QR
+# https://robologs.net/2017/07/17/deteccion-de-codigos-qr-en-python-con-opencv-y-zbar/
+
+# Grayscale Digital Halftoning using Optimization Techniques
+# http://ethesis.nitrkl.ac.in/7814/1/2015_Grayscale_Lalitha.pdf
+# Threshold matrix generation for digital halftoning by genetic algorithm optimizatio
+# https://pdfs.semanticscholar.org/82e4/78f83f42c0a84528722a27e8d0d91f3fa3b8.pdf
+# Halftone Image Generation with Improved Multiobjective Genetic Algorithm
+# https://www.researchgate.net/publication/2366306_Halftone_Image_Generation_with_Improved_Multiobjective_Genetic_Algorithm
+# Aesthetic QR code generation with background contrast enhancement and user interaction
+# file:///C:/Users/luisd/Downloads/108280G.pdf
+# Stylize Aesthetic QR Code
+# https://arxiv.org/pdf/1803.01146.pdf
+# Efficient QR Code Beautification With High Quality Visual Content
+# http://graphics.csie.ncku.edu.tw/QR_code/QR_code_TMM.pdf
+# ART-UP: A Novel Method for Generating Scanning-robust Aesthetic QR codes
+# https://arxiv.org/pdf/1803.02280.pdf
+# HALFTONED QR
+# https://jsfiddle.net/lachlan/r8qWV/
+#
+# ALGORITMO GENETICO CON PENALIZACION DE MUTACIONES
+# https://dam-prod.media.mit.edu/x/files/wp-content/uploads/sites/10/2013/07/spie97newbern.pdf
+#
+# DEFINIR UN OBJETO PIXEL CON LOS ATRIBUTOS DE COORDENADA(X,Y) Y NIVEL DE ILUMINACION
+# DEFINIR UNA FUNCION QUE "ENCUENTRE" LOS MODULOS (CUADRO BLANCO O NEGRO) DEL QR Y SU TAMAÑO PARA DEFINIR LOS PIXELES CENTRALES
+# DEFINIR UNA FUNCION QUE REGRESE LA MASCARA DE ACUERDO AL MODULO, (1 -> PIXEL(ES) CENTRAL(ES) DEL MODULO  0 -> NO ES PIXEL CENTRAL)
+
 #
