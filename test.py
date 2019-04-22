@@ -6,6 +6,16 @@ import numpy as np
 from PIL import Image
 
 
+def UnosA255(arrayQR):
+    for i in range(len(arrayQR)):
+        for j in range(len(arrayQR[i])):
+            if arrayQR[i][j] == 1:
+                arrayQR[i][j] = 255
+            else:
+                arrayQR[i][j] = 0
+    return arrayQR
+
+
 def find_new_pixel(pixel):
     return 0 if pixel < 128 else 255
 
@@ -45,7 +55,7 @@ def FloydDithering(imagen):
 
 
 # Jarvis, Judice, and Ninke https://engineering.purdue.edu/~bouman/ece637/notes/pdf/Halftoning.pdf pag 22
-def JarvisDithering(imagen):
+def JarvisDithering(imagen, tamano):
     img = cv2.imread(imagen)
 
     #img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -58,7 +68,7 @@ def JarvisDithering(imagen):
             img_gray[x].append([])
             img_gray[x][y] = (img[x, y, 0] * 0.2126) + (img[x, y, 1] * 0.7152) + (img[x, y, 2] * 0.0722)
 
-    matrizimagen = np.zeros((200, 200))
+    matrizimagen = np.zeros((tamano, tamano))
 
     for x in range(len(img_gray) - 2):
         for y in range(len(img_gray[x]) - 2):
@@ -110,21 +120,72 @@ def redimensionarQR(nombre_imagen,escala):
     return imgresized
 
 
-def cambia_tamano_de_esta_imagen(nombre_imagen):
+def cambia_tamano_de_esta_imagen(nombre_imagen, tamano):
     """
     :param nombre_imagen:  string con el nombre de la imagen a redimensionar
-    :return: objeto Image con la imagen redimensionada a 200*200 pixeles
+    :param tamano: integer cantidad para redimensionar
+    :return: objeto Image con la imagen redimensionada al tamaño indicado
     """
     img = Image.open(nombre_imagen)
 
-    Width = 200
-    Height = 200
+    Width = tamano
+    Height = tamano
 
     imgresized = img.resize((Width, Height), Image.ANTIALIAS)
 
     imgresized.save(nombre_imagen)
 
     return imgresized
+
+
+def FindModuleSize(QR_Image):
+    QR_array = cv2.imread(QR_Image)
+    aux = QR_array[0,0,0]
+    flag1 = False
+    cont1 = 0
+    contador = 0
+    for i in range(len(QR_array)):
+        for pixel1 in QR_array[i]:
+            if pixel1[0] != aux:
+                aux = pixel1[0]
+                cont1 += 1
+                flag1 = True
+            if flag1:
+                if cont1<2:
+                    contador += 1
+                else:
+                    break
+        if contador != 0:
+            break
+    return contador/7
+
+
+def CentralPixelMask(QR_image):
+    # 0 -> no es pixel central
+    # 1 -> es pixel central
+    Tamano_del_modulo = int(FindModuleSize(QR_image))
+    QR_array = cv2.imread(QR_image)
+
+    maskaredQR_array = np.zeros((len(QR_array),len(QR_array[0])))
+
+    BorderSize = Tamano_del_modulo//3
+
+    reemplazo = np.ones((Tamano_del_modulo - (BorderSize * 2), Tamano_del_modulo - (BorderSize * 2)))
+
+    reemplazo = np.pad(reemplazo, BorderSize, mode='constant', constant_values=0)
+
+    for i in range(0, len(QR_array), Tamano_del_modulo):
+        for j in range(0, len(QR_array[i]), Tamano_del_modulo):
+            if QR_array[i][j][0] !=0:
+                aux1=0
+                for k in range(i,i+Tamano_del_modulo):
+                    aux2=0
+                    for m in range(j,j+Tamano_del_modulo):
+                        maskaredQR_array[k][m]=reemplazo[aux1][aux2]
+                        aux2+=1
+                    aux1+=1
+
+    return maskaredQR_array
 
 
 def halftoneQR(QR, imagen):
@@ -162,6 +223,17 @@ def binarizacionSimple(imagen, threshold):
     return img_gray
 
 
+def IluminationLevel(HalftoningMask, CentralPixelMask, QR_Image):
+    """
+    :return: matriz con el nivel de iluminacion para cada pixel
+    Beta  0 -> if centralPixel = 0 , QR = 1, HalftoneMask = 1
+    Alfa  1 -> if centralPixel = 0 , QR = 0, HalftoneMask = 1
+    Betac 2 -> if centralPixel = 1 , QR = 1, HalftoneMask = 0
+    Alfac 3 -> if centralPixel = 1 , QR = 0, HalftoneMask = 0
+    Nada  4 -> otra cosa
+    """
+
+# ********** Crear QR y obtener datos de el *********
 qr = qrcode.QRCode(
     version=10,
     error_correction=qrcode.constants.ERROR_CORRECT_L,
@@ -169,48 +241,46 @@ qr = qrcode.QRCode(
     border=1,
 )
 
-# 0 -17 caracteres -> 23*23 QR
-# 18-32 caracteres -> 27*27 QR
-# 33-53 caracteres -> 31*31 QR
-# 54-78 caracteres -> 35*35 QR -> 0.4
-# 79->¿ caracteres -> 39*39 QR
-#                  -> 43*43
-#                  -> 47*47
-#qr.add_data('hey')
 qr.add_data('BEGIN:VCARD\nVERSION:3.0\n'
             'N:Sustaita;Luis\nTEL:4491046191\n'
             'EMAIL:ld.delacruzsustaita@ugto.mx\n'
             '\nEND:VCARD')
 qr.make(fit=True)
-
 img = qr.make_image()
-
 NOMBRE_DE_QR = "qrsito.png"
-
 img.save(NOMBRE_DE_QR)
+QR_Redimensionado = redimensionarQR(NOMBRE_DE_QR, 6) # QR objeto Image nuevo tamaño
+arrayQR = cv2.imread("new "+NOMBRE_DE_QR) # QR matriz numpy (0 - 255)                                           <------
+Tamano_del_modulo = FindModuleSize("new "+NOMBRE_DE_QR) # integer con el tamaño del modulo
+# ********************
+show1 = Image.fromarray(arrayQR)
+show1.show()
 
-arrayQR = np.asarray(img, dtype=np.int)
-for i in range(len(arrayQR)):
-    for j in range(len(arrayQR[i])):
-        if arrayQR[i][j] == 1:
-            arrayQR[i][j] = 255
-        else:
-            arrayQR[i][j] = 0
+# -------- Crea mascara de pixeles centrales de QR
+maskaredModule = CentralPixelMask("new "+NOMBRE_DE_QR) # Mascara de pixeles centrales matriz numpy (0 - 1)
+maskaredModule255 = UnosA255(maskaredModule) # Mascara de pixeles centrales matriz numpy (0 - 255)              <-----
+# --------------------------
+show2 = Image.fromarray(maskaredModule255)
+show2.show()
 
+# Obtener tamaño de QR para redimensionar la imagen a ese tamaño
+tamano = maskaredModule.shape[0]
+# --------------------------
+
+# ---------- Crear imagen con Halftone
 imagen = 'pat2.jpeg'
+cambia_tamano_de_esta_imagen(imagen, tamano)
+halftoned_image = JarvisDithering(imagen, tamano) # imagen Halftoneada ggg matriz de numpy (0 - 255)            <-------
+# --------------------------
+show3 = Image.fromarray(halftoned_image)
+show3.show()
 
-QR_Redimensionado = redimensionarQR(NOMBRE_DE_QR, 3)
+# ********* Crea matriz de iluminacion
 
-cambia_tamano_de_esta_imagen("new "+NOMBRE_DE_QR)
-cambia_tamano_de_esta_imagen(imagen)
 
-# binarizacion(imagen, 127)
-# FloydDithering(imagen)
-halftoned_image = JarvisDithering(imagen)
 
-newQR = halftoneQR(arrayQR, halftoned_image)
-#cv2.imwrite('NEW QR.jpg', newQR)
-
+"""
+CODIGO ANTIGUO
 imagen1 = cv2.imread('qrsito.png')
 imagen2 = cv2.imread(imagen)
 
@@ -225,7 +295,7 @@ cv2.imshow('imagen_resultado', imagen_resultado)
 cv2.imwrite('imagen_resultado.png', imagen_resultado)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
-
+"""
 
 # Links de posible ayuda
 # ARTICULO BASE
@@ -269,7 +339,7 @@ cv2.destroyAllWindows()
 # https://dam-prod.media.mit.edu/x/files/wp-content/uploads/sites/10/2013/07/spie97newbern.pdf
 #
 # DEFINIR UN OBJETO PIXEL CON LOS ATRIBUTOS DE COORDENADA(X,Y) Y NIVEL DE ILUMINACION
-# DEFINIR UNA FUNCION QUE "ENCUENTRE" LOS MODULOS (CUADRO BLANCO O NEGRO) DEL QR Y SU TAMAÑO PARA DEFINIR LOS PIXELES CENTRALES
-# DEFINIR UNA FUNCION QUE REGRESE LA MASCARA DE ACUERDO AL MODULO, (1 -> PIXEL(ES) CENTRAL(ES) DEL MODULO  0 -> NO ES PIXEL CENTRAL)
+# DEFINIR UNA FUNCION QUE "ENCUENTRE" LOS MODULOS (CUADRO BLANCO O NEGRO) DEL QR Y SU TAMAÑO PARA DEFINIR LOS PIXELES CENTRALES        x
+# DEFINIR UNA FUNCION QUE REGRESE LA MASCARA DE ACUERDO AL MODULO, (1 -> PIXEL(ES) CENTRAL(ES) DEL MODULO  0 -> NO ES PIXEL CENTRAL)   x
 
 #
