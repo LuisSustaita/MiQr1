@@ -21,7 +21,7 @@ def find_new_pixel(pixel):
 
 
 # Floyd and Steinberg https://engineering.purdue.edu/~bouman/ece637/notes/pdf/Halftoning.pdf pag 22
-def FloydDithering(imagen):
+def FloydDithering(imagen,nombre, tamano):
     img = cv2.imread(imagen)
 
     #img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -34,7 +34,7 @@ def FloydDithering(imagen):
             img_gray[x].append([])
             img_gray[x][y] = (img[x, y, 0] * 0.2126) + (img[x, y, 1] * 0.7152) + (img[x, y, 2] * 0.0722)
 
-    matrizimagen = np.zeros((200, 200))
+    matrizimagen = np.zeros((tamano, tamano))
 
     for x in range(len(img_gray)-1):
         for y in range(len(img_gray[x])-1):
@@ -51,11 +51,12 @@ def FloydDithering(imagen):
 
             matrizimagen[x][y] = newpixel
 
-    cv2.imwrite('floydDit.jpg', matrizimagen)
+    cv2.imwrite('C:/Users/luisd/Dropbox/tesis/codigos/IntentoQr1/Fin'+nombre, matrizimagen)
+    return matrizimagen
 
 
 # Jarvis, Judice, and Ninke https://engineering.purdue.edu/~bouman/ece637/notes/pdf/Halftoning.pdf pag 22
-def JarvisDithering(imagen, tamano):
+def JarvisDithering(imagen, tamano, nombre):
     img = cv2.imread(imagen)
 
     #img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -95,7 +96,7 @@ def JarvisDithering(imagen, tamano):
 
             matrizimagen[x][y] = newpixel
 
-    cv2.imwrite('JarvisDit.jpg', matrizimagen)
+    cv2.imwrite('C:/Users/luisd/Dropbox/tesis/codigos/IntentoQr1/Fin'+nombre, matrizimagen)
     return matrizimagen
 
 
@@ -227,15 +228,33 @@ def IluminationLevel(HalftoningMask, CentralPixelMask, QR_Image):
     """
     :return: matriz con el nivel de iluminacion para cada pixel
     Beta  0 -> if centralPixel = 0 , QR = 1, HalftoneMask = 1
-    Alfa  1 -> if centralPixel = 0 , QR = 0, HalftoneMask = 1
+    Alfa  1 -> if centralPiel = 0 , QR = 0, HalftoneMask = 1
     Betac 2 -> if centralPixel = 1 , QR = 1, HalftoneMask = 0
     Alfac 3 -> if centralPixel = 1 , QR = 0, HalftoneMask = 0
     Nada  4 -> otra cosa
     """
 
+    Iluminati = np.zeros((len(QR_Image),len(QR_Image)))
+
+    for i in range(len(Iluminati)):
+        for j in range(len(Iluminati[i])):
+            if CentralPixelMask[i][j] == 0 and (QR_Image[i][j].all() == 1 or QR_Image[i][j].all() == 255) and (HalftoningMask[i][j] == 1 or HalftoningMask[i][j] == 255):
+                Iluminati[i][j] = 0
+            elif CentralPixelMask[i][j] == 0 and QR_Image[i][j].all() == 0 and (HalftoningMask[i][j] == 1 or HalftoningMask[i][j] == 255):
+                Iluminati[i][j] = 1
+            elif (CentralPixelMask[i][j] == 1 or CentralPixelMask[i][j] == 255) and (QR_Image[i][j].all() == 1 or QR_Image[i][j].all() == 255) and HalftoningMask[i][j] == 0:
+                Iluminati[i][j] = 2
+            elif (CentralPixelMask[i][j] == 1 or CentralPixelMask[i][j] == 255) and QR_Image[i][j].all() == 0 and HalftoningMask[i][j] == 0:
+                Iluminati[i][j] = 3
+            else:
+                Iluminati[i][j] = 4
+
+    return Iluminati
+
+
 # ********** Crear QR y obtener datos de el *********
 qr = qrcode.QRCode(
-    version=10,
+    version=3,
     error_correction=qrcode.constants.ERROR_CORRECT_L,
     box_size=1,
     border=1,
@@ -254,33 +273,36 @@ arrayQR = cv2.imread("new "+NOMBRE_DE_QR) # QR matriz numpy (0 - 255)           
 Tamano_del_modulo = FindModuleSize("new "+NOMBRE_DE_QR) # integer con el tamaño del modulo
 # ********************
 show1 = Image.fromarray(arrayQR)
-show1.show()
+#show1.show()
 
 # -------- Crea mascara de pixeles centrales de QR
 maskaredModule = CentralPixelMask("new "+NOMBRE_DE_QR) # Mascara de pixeles centrales matriz numpy (0 - 1)
 maskaredModule255 = UnosA255(maskaredModule) # Mascara de pixeles centrales matriz numpy (0 - 255)              <-----
 # --------------------------
 show2 = Image.fromarray(maskaredModule255)
-show2.show()
+#show2.show()
 
 # Obtener tamaño de QR para redimensionar la imagen a ese tamaño
 tamano = maskaredModule.shape[0]
 # --------------------------
 
 # ---------- Crear imagen con Halftone
-imagen = 'pat2.jpeg'
+print("Creando Halftone...")
+nombre = "ardilla2.jpeg"
+imagen = 'C:/Users/luisd/Dropbox/tesis/imagenes/normales/'+nombre
 cambia_tamano_de_esta_imagen(imagen, tamano)
-halftoned_image = JarvisDithering(imagen, tamano) # imagen Halftoneada ggg matriz de numpy (0 - 255)            <-------
+halftoned_image = FloydDithering(imagen, nombre, tamano) # imagen Halftoneada ggg matriz de numpy (0 - 255)            <-------
 # --------------------------
 show3 = Image.fromarray(halftoned_image)
 show3.show()
 
 # ********* Crea matriz de iluminacion
-
+#print("Creando matriz de iluminación...")
+#LuminanceLevel = IluminationLevel(halftoned_image,maskaredModule255,arrayQR)
 
 
 """
-CODIGO ANTIGUO
+#CODIGO ANTIGUO
 imagen1 = cv2.imread('qrsito.png')
 imagen2 = cv2.imread(imagen)
 
@@ -298,48 +320,62 @@ cv2.destroyAllWindows()
 """
 
 # Links de posible ayuda
+
+#R. W. Floyd and L. Steinberg. An adaptive algorithm for spatial X
+#gray-scale. Proceedings Society Information Display, 17(2):75–78,
+#1976.
+
+#J. F. Jarvis, C. N. Judice, and W. H. Ninke. A survey of techniques for the display X
+#of continuous tone pictures on bilevel displays. Computer Graphics and Image
+#Processing, 5:13–40, 1976.
+
+# Halftoning review and analysis
+# http://www.scielo.org.co/scielo.php?script=sci_arttext&pid=S1692-33242012000200014 X
 # ARTICULO BASE
-# file:///C:/Users/luisd/Downloads/DoubleColumn.pdf
+# file:///C:/Users/luisd/Downloads/DoubleColumn.pdf X
 # 26 28 30
 # Presentacion basica
-# https://engineering.purdue.edu/~bouman/ece637/notes/pdf/Halftoning.pdf
+# https://engineering.purdue.edu/~bouman/ece637/notes/pdf/Halftoning.pdf X
 # Presentacion no tan basica
-# http://webstaff.itn.liu.se/~sasgo26/Dig_Halftoning/Lectures/Lecture_2013_1.pdf
+# http://webstaff.itn.liu.se/~sasgo26/Dig_Halftoning/Lectures/Lecture_2013_1.pdf X
 # Tipos de esparcimiento
-# https://blog.demofox.org/2017/10/20/generating-blue-noise-sample-points-with-mitchells-best-candidate-algorithm/
+# https://blog.demofox.org/2017/10/20/generating-blue-noise-sample-points-with-mitchells-best-candidate-algorithm/ X
 # Libro de Halftoning
-# file:///C:/Users/luisd/Downloads/epdf.tips_modern-digital-halftoning-second-edition-signal-pr.pdf
+# file:///C:/Users/luisd/Downloads/epdf.tips_modern-digital-halftoning-second-edition-signal-pr.pdf X
 # Articulo medio pedorro de halftoning
-# https://pdfs.semanticscholar.org/7f8f/9fed14f0bd509af776a90cb220f9c26ccb81.pdf
+# https://pdfs.semanticscholar.org/7f8f/9fed14f0bd509af776a90cb220f9c26ccb81.pdf X
 # TESIS Advanced halftoning methods
-# file:///C:/Users/luisd/Downloads/BPTX_2008_2_11320_0_233062_0_73868.pdf
+# file:///C:/Users/luisd/Downloads/BPTX_2008_2_11320_0_233062_0_73868.pdf X
 # Articulo A Simple and Efficient Error-Diffusion Algorithm
-# http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.16.8947&rep=rep1&type=pdf
+# http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.16.8947&rep=rep1&type=pdf X
 # Deteccion de codigos QR
 # https://robologs.net/2017/07/17/deteccion-de-codigos-qr-en-python-con-opencv-y-zbar/
 
 # Grayscale Digital Halftoning using Optimization Techniques
-# http://ethesis.nitrkl.ac.in/7814/1/2015_Grayscale_Lalitha.pdf
+# http://ethesis.nitrkl.ac.in/7814/1/2015_Grayscale_Lalitha.pdf X
 # Threshold matrix generation for digital halftoning by genetic algorithm optimizatio
-# https://pdfs.semanticscholar.org/82e4/78f83f42c0a84528722a27e8d0d91f3fa3b8.pdf
+# https://pdfs.semanticscholar.org/82e4/78f83f42c0a84528722a27e8d0d91f3fa3b8.pdf X
 # Halftone Image Generation with Improved Multiobjective Genetic Algorithm
-# https://www.researchgate.net/publication/2366306_Halftone_Image_Generation_with_Improved_Multiobjective_Genetic_Algorithm
+# https://www.researchgate.net/publication/2366306_Halftone_Image_Generation_with_Improved_Multiobjective_Genetic_Algorithm C
 # Aesthetic QR code generation with background contrast enhancement and user interaction
-# file:///C:/Users/luisd/Downloads/108280G.pdf
+# file:///C:/Users/luisd/Downloads/108280G.pdf X
 # Stylize Aesthetic QR Code
-# https://arxiv.org/pdf/1803.01146.pdf
+# https://arxiv.org/pdf/1803.01146.pdf X
 # Efficient QR Code Beautification With High Quality Visual Content
-# http://graphics.csie.ncku.edu.tw/QR_code/QR_code_TMM.pdf
+# http://graphics.csie.ncku.edu.tw/QR_code/QR_code_TMM.pdf X
 # ART-UP: A Novel Method for Generating Scanning-robust Aesthetic QR codes
-# https://arxiv.org/pdf/1803.02280.pdf
+# https://arxiv.org/pdf/1803.02280.pdf X
 # HALFTONED QR
 # https://jsfiddle.net/lachlan/r8qWV/
+# DECODIFICACION DE QR
+# https://www.fing.edu.uy/inco/proyectos/butia/mediawiki/images/b/ba/Analisis_decodificaci%C3%B3n_QR_Code.pdf
 #
 # ALGORITMO GENETICO CON PENALIZACION DE MUTACIONES
-# https://dam-prod.media.mit.edu/x/files/wp-content/uploads/sites/10/2013/07/spie97newbern.pdf
+# https://dam-prod.media.mit.edu/x/files/wp-content/uploads/sites/10/2013/07/spie97newbern.pdf X
 #
-# DEFINIR UN OBJETO PIXEL CON LOS ATRIBUTOS DE COORDENADA(X,Y) Y NIVEL DE ILUMINACION
-# DEFINIR UNA FUNCION QUE "ENCUENTRE" LOS MODULOS (CUADRO BLANCO O NEGRO) DEL QR Y SU TAMAÑO PARA DEFINIR LOS PIXELES CENTRALES        x
-# DEFINIR UNA FUNCION QUE REGRESE LA MASCARA DE ACUERDO AL MODULO, (1 -> PIXEL(ES) CENTRAL(ES) DEL MODULO  0 -> NO ES PIXEL CENTRAL)   x
-
+#
+#PATENTE
+#https://patentimages.storage.googleapis.com/45/23/85/c349724f4dcf9d/US5726435.pdf X
+#ISO
+#file:///C:/Users/luisd/Downloads/ISO%20IEC%2018004%202015%20Standard.pdf
 #
